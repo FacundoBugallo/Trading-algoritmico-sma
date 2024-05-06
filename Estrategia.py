@@ -22,6 +22,8 @@ plt.rc('text', color='#C9C9C9')
 
 # Funcion de preprocesado
 
+# ------------------PRCESAMOS LOS DATOS----------------------
+
 
 def preprocessing(name):
 
@@ -56,7 +58,13 @@ def preprocessing_yf_(symbol):
 
 df = preprocessing_yf_("BTC-USD")
 
+# ------------------------------------------------------
+
+
+# --------------------CREAMOS LA MEDIA-----------------
+
 # Media Movil 30 dias
+# Junta 30 vultimos valores y sacamos la media
 df["SMA_Fast"] = df["close"].rolling(30).mean()
 
 # Media Movil 60 dias
@@ -64,28 +72,37 @@ df["SMA_Slow"] = df["close"].rolling(80).mean()
 
 # Plot resultado
 df[["close", "SMA_Fast", "SMA_Slow"]].plot(figsize=(15, 8))
-df[["close", "SMA_Fast", "SMA_Slow"]].loc["2016"].plot(figsize=(15, 8))
+df[["close", "SMA_Fast", "SMA_Slow"]].loc["2018"].plot(figsize=(15, 8))
+
+# -----------------------------------------------------
+
+# --------------------CREAMOS LA ESTRATEGIA-------------
 
 # Estrategia
-df["position"] = np.nan
+df["position"] = np.nan  # ---> GUARDAREMOS LA OPERACOION
 
 # Crear la condiciones
 df.loc[(df["SMA_Fast"] > df["SMA_Slow"]), "position"] = 1
 df.loc[(df["SMA_Fast"] < df["SMA_Slow"]), "position"] = -1
 
-# Reprecentamos toda laseñas para ver que sea correcto
-year = "2023"
+# --------------------GRAFICAMOS LA ESTRATEGIA-----------
+# Representamos en una grafica las señales de la estrategia
 
-# seleccionamos tolas las señaes en una lista de indices
-# para representar solo estos puntos
+year = "2020"
+
+#   seleccionamos tolas las señaes en una lista de indices
+#    para representar solo estos puntos
+
 idx_open = df.loc[df["position"] == 1].loc[year].index
 idx_close = df.loc[df["position"] == -1].loc[year].index
 
+
+# Grafico
 plt.figure(figsize=(15, 6))
-plt.scatter(idx_open, df.loc[idx_open,
-            "close"].loc[year], color="#57CE95", marker="^")
-plt.scatter(idx_close, df.loc[idx_close,
-            "close"].loc[year], color="red", marker="v")
+plt.scatter(idx_open, df.loc[idx_open]
+            ["close"].loc[year], color="#57CE95", marker="^")
+plt.scatter(idx_close, df.loc[idx_close]
+            ["close"].loc[year], color="red", marker="v")
 
 
 plt.plot(df["close"].loc[year].index, df["close"].loc[year], alpha=0.35)
@@ -96,26 +113,35 @@ plt.plot(df["close"].loc[year].index, df["SMA_Slow"].loc[year], alpha=0.35)
 
 plt.show()
 
+# -----------------------------------------------------------
 
-# Calcular las ganancias
-#   Porcentaje de variacion
+# -----------------CALCULAR LAS GANACIAS---------------------
+
+#   Porcentaje de variacion del activo
 df["pct"] = df["close"].pct_change(1)
-#   Calcular Rentabilidad(Retoro) de variacion del activo
-df["return"] = df["pct"] * df["position"].shift(1)
 
+#   Calcular Rentabilidad(Retorno) de la estrategia
+df["return"] = df["pct"] * df["position"].shift(1)
 df["return"].plot(figsize=(15, 8))
 
 # balanze diario (1%, 3%, -1%) --> balanze acumulado (1%, 4%, -1%)
 df["return"].cumsum().plot(figsize=(15, 8))
 
+# ------------------------------------------------------------
 
-# preparar datos
+# ----------------Calcular metricas----------------------------
+
+# Preparar datos
 btc = yf.download("BTC-USD", end="2024-04-04")
 return_serie = btc["Adj Close"].pct_change(1).dropna()
 return_serie.name = "return"
 
 
-# calcular el indice de sortino
+# Sortino
+
+
+# En el indice de sortino se tiene en cuenta la volatiidad negativa
+# Calcular el indice de sortino
 mean = np.mean(return_serie)
 vol = np.std(return_serie[return_serie < 0])
 sortino = np.sqrt(365) * mean/vol
@@ -125,7 +151,28 @@ print(f"Sortino: {'%.3f' % sortino}")
 # por eso multimplicamos la media por 365 dia para anualizarlo
 
 
+# Beta
+# Necesitamos calcular la covatianza entre el mercado y la cartera
+# pct_change --> porcentaje de cambio dirario
+eth = yf.download("ETH-USD")["Adj Close"].pct_change(1)
+eth.name = "ETH-USD"
+
+# Los concatenamos para hacer la covarianza
+val = pd.concat((return_serie, eth), axis=1).dropna()
+val
+
+# Calculamos la matriz de covarianzas
+cov_var_mat = np.cov(val.values, rowvar=False)
+cov_var_mat
+
+# Cauclulamos beta
+cov = cov_var_mat[0][1]
+var = cov_var_mat[1][1]
+
+beta = cov/var
 # Drawdown
+print(f"Beta: {'%.3f' % beta}")
+
 
 def drawndown_function(serie):
     # Calcula la suma de los rendimientos

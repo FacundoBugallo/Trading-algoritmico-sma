@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from Estrategia import preprocessing, preprocessing_yf_
 
 
@@ -15,7 +17,7 @@ def SMA_strategy(input, mt5=False, yf=False):
     df["SMA_Fast"] = df["close"].rolling(30).mean()
 
     # Media Movil 60 dias
-    df["SMA_Slow"] = df["close"].rolling(80).mean()
+    df["SMA_Slow"] = df["close"].rolling(60).mean()
     df["position"] = np.nan
 
     # Crear condiciones
@@ -32,3 +34,27 @@ def SMA_strategy(input, mt5=False, yf=False):
 
 
 SMA_strategy("BTC-USD", yf=True).cumsum().plot(figsize=(15, 8))
+
+
+# Comparo
+
+btc = SMA_strategy("BTC-USD", yf=True)
+eth = SMA_strategy("ETH-USD", yf=True)
+returns = pd.DataFrame([btc, eth], index=["BTC-USD", "ETH-USD"]
+                       ).transpose().dropna().cumsum(axis=0)
+
+# Grafico
+plt.figure(figsize=(18, 8))
+
+# REPRECENTAMOS EL RETORNO
+plt.plot(returns["BTC-USD"], label="BTC-USD")
+plt.plot(returns["ETH-USD"], label="ETH-USD")
+
+# TITULO Y NOMBRE DE EJES
+plt.xlabel("Tiempo", size=15)
+plt.ylabel("% Beneficios", size=15)
+plt.title("Diferenvai entre estrategias sobre el mismo activo", size=20)
+
+# leyenda
+plt.legend()
+plt.show()
